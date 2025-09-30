@@ -1,0 +1,747 @@
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+model asset {
+    id             Int            @id @default(autoincrement())
+    name           String?        @db.VarChar(50)
+    description    String?        @db.VarChar(200)
+    assetnumber    String?        @db.VarChar(50)
+    qrcode         String?        @db.VarChar(100)
+    serialnumber   String?        @db.VarChar(50)
+    active         Int?           @default(1) @db.TinyInt
+    fkinstituteid  Int?
+    fkoutletid     Int?
+    fkassettypeid  Int?
+    nolines        Int?           @default(1) @db.TinyInt
+    installdate    DateTime?      @db.Date
+    ownership      String?        @default("institute") @db.VarChar(10)
+    fkassetmakeid  Int?
+    fkassetmodelid Int?
+    asset_make     asset_make?    @relation(fields: [fkassetmakeid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_asset_make")
+    asset_model    asset_model?   @relation(fields: [fkassetmodelid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_asset_model")
+    asset_type     asset_type?    @relation(fields: [fkassettypeid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_asset_type")
+    institute      institute?     @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "asset_institute_fk")
+    outlet         outlet?        @relation(fields: [fkoutletid], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "asset_outlet_fk")
+    asset_action   asset_action[]
+    asset_photos   asset_photos[]
+
+    @@index([fkassetmakeid], map: "FK_asset_asset_make_idx")
+    @@index([fkassetmodelid], map: "FK_asset_asset_model_idx")
+    @@index([fkassettypeid], map: "FK_asset_asset_type_idx")
+    @@index([fkinstituteid], map: "asset_institute_fk_idx")
+    @@index([fkoutletid], map: "asset_outlet_fk_idx")
+}
+
+model asset_action {
+    id                    Int                @id @unique(map: "id_UNIQUE") @default(autoincrement())
+    actiondate            DateTime?          @db.DateTime(0)
+    latitude              Decimal?           @db.Decimal(10, 6)
+    longitude             Decimal?           @db.Decimal(10, 6)
+    fkuserid              Int?
+    fkassetid             Int?
+    fkasset_action_typeid Int?
+    fkoutletid            Int?
+    asset                 asset?             @relation(fields: [fkassetid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_action_asset")
+    asset_action_type     asset_action_type? @relation(fields: [fkasset_action_typeid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_action_asset_action_type")
+
+    @@index([fkasset_action_typeid], map: "FK_asset_action_asset_action_type_idx")
+    @@index([fkassetid], map: "FK_asset_action_asset_idx")
+}
+
+model asset_action_type {
+    id            Int            @id @default(autoincrement())
+    name          String?        @db.VarChar(50)
+    fkinstituteid Int?
+    asset_action  asset_action[]
+    institute     institute?     @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_action_type_institute")
+
+    @@index([fkinstituteid], map: "FK_asset_action_type_institute_idx")
+}
+
+model asset_make {
+    id            Int           @id @default(autoincrement())
+    fkinstituteid Int?
+    name          String?       @db.VarChar(45)
+    description   String?       @db.VarChar(200)
+    fktypeid      Int?
+    asset         asset[]
+    institute     institute?    @relation(fields: [fkinstituteid], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_asset_make_institute")
+    asset_model   asset_model[]
+
+    @@index([fkinstituteid], map: "FK_asset_make_institute_idx")
+}
+
+model asset_model {
+    id            Int         @id @default(autoincrement())
+    fkinstituteid Int?
+    name          String?     @db.VarChar(45)
+    description   String?     @db.VarChar(200)
+    fkmakeid      Int?
+    asset         asset[]
+    asset_make    asset_make? @relation(fields: [fkmakeid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_make")
+    institute     institute?  @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_model_institute")
+
+    @@index([fkmakeid], map: "FK_asset_make_idx")
+    @@index([fkinstituteid], map: "FK_asset_model_institute_idx")
+}
+
+model asset_photos {
+    id           Int       @id @unique(map: "id_UNIQUE") @default(autoincrement())
+    description  String?   @db.VarChar(500)
+    fkassetid    Int?
+    publicurl    String?   @db.VarChar(200)
+    creationdate DateTime? @db.DateTime(0)
+    asset        asset?    @relation(fields: [fkassetid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_document_assetid")
+
+    @@index([fkassetid], map: "FK_Asset_Document_AssetID_idx")
+}
+
+model asset_type {
+    id            Int        @id @default(autoincrement())
+    fkinstituteid Int?
+    name          String?    @db.VarChar(45)
+    description   String?    @db.VarChar(200)
+    asset         asset[]
+    institute     institute? @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_asset_type_institute")
+
+    @@index([fkinstituteid], map: "FK_asset_type_institute_idx")
+}
+
+model city {
+    id     Int      @id @default(autoincrement())
+    name   String   @unique(map: "name_UNIQUE") @db.VarChar(100)
+    active Int?     @default(1) @db.TinyInt
+    outlet outlet[]
+}
+
+model contract {
+    id               Int        @id @default(autoincrement())
+    contract_number  String?    @db.VarChar(255)
+    contract_date    DateTime?  @db.Date
+    contract_done_by String?    @db.VarChar(255)
+    active           Int        @default(1) @db.TinyInt
+    fkinstituteid    Int?
+    fkoutletid       Int?
+    institute        institute? @relation(fields: [fkinstituteid], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "contract_institute_fk")
+    outlet           outlet?    @relation(fields: [fkoutletid], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "contract_outlet_fk")
+
+    @@index([id, fkoutletid], map: "contract_outlet_fk_idx")
+    @@index([fkoutletid], map: "contract_outlet_fk_idx1")
+    @@index([fkinstituteid], map: "fkinstituteid")
+}
+
+model country {
+    id        Int      @id @default(autoincrement())
+    name      String   @unique(map: "country_name_UNIQUE") @db.VarChar(100)
+    active    Int?     @default(1) @db.TinyInt
+    time_zone String?  @db.VarChar(256)
+    outlet    outlet[]
+}
+
+model customer {
+    id            Int        @id @default(autoincrement())
+    name          String
+    logourl       String?
+    fkinstituteid Int?
+    active        Int?       @default(1) @db.TinyInt
+    contact_name  String?    @db.VarChar(256)
+    contact_email String?    @db.VarChar(256)
+    contact_phone String?    @db.VarChar(256)
+    institute     institute? @relation(fields: [fkinstituteid], references: [id], map: "institute")
+    outlet        outlet[]
+    user          user[]
+
+    @@unique([name, fkinstituteid], map: "idx_name_instituteid")
+    @@index([fkinstituteid], map: "fkinstituteid_ind")
+}
+
+model dataload_config {
+    id            Int       @id @unique(map: "id_UNIQUE") @default(autoincrement())
+    fkinstituteid Int       @unique(map: "fkinstituteid_UNIQUE")
+    maxrecords    Int?      @default(5000)
+    lastrecordid  String?   @default("0") @db.VarChar(45)
+    institute     institute @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_dataload_institute")
+
+    @@index([fkinstituteid], map: "institute_idx")
+}
+
+model daylightsaving {
+    id            Int       @id @default(autoincrement())
+    fkoutletid    Int?
+    startdatetime DateTime? @db.DateTime(0)
+    enddatetime   DateTime? @db.DateTime(0)
+    timezone      String?   @db.VarChar(50)
+    outlet        outlet?   @relation(fields: [fkoutletid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "tz_fk_ouletid")
+
+    @@unique([fkoutletid, startdatetime, enddatetime], map: "dsl_unique")
+    @@index([startdatetime, enddatetime, timezone], map: "dsl_dates_timezone_idx")
+    @@index([fkoutletid], map: "dsl_outletid_idx")
+}
+
+model deassociate_asset_outlet {
+    id         Int      @id @default(autoincrement())
+    fkassetid  Int
+    fkoutletid Int
+    created_at DateTime @db.Timestamp(0)
+    email_sent Int      @default(0) @db.TinyInt
+
+    @@index([email_sent], map: "email_sent")
+}
+
+model device {
+    id                 Int              @id @default(autoincrement())
+    name               String?          @db.VarChar(45)
+    fkoutletid         Int?
+    fkpostypeid        Int?             @default(1)
+    sim                String?          @db.VarChar(50)
+    uid                String?          @unique(map: "posuid_uniq_key") @db.VarChar(50)
+    timezone           Int?             @default(2)
+    timeoffset         Int?             @default(0)
+    firmwareversion    String?          @db.Char(8)
+    firstseentimestamp DateTime?        @db.Timestamp(0)
+    lastseentimestamp  DateTime         @default(dbgenerated("'2019-05-31 20:00:00'")) @db.Timestamp(0)
+    latlng             String?          @db.VarChar(45)
+    active             Int?             @default(1) @db.TinyInt
+    info               String?          @db.VarChar(200)
+    sdcard             Int?             @default(0)
+    dipswitch          Int?
+    battery            Int?
+    totaldevices       Int?             @default(0)
+    signalstrength     String?          @db.VarChar(50)
+    alwaysonline       Int?             @default(1) @db.TinyInt
+    ssid               String?          @db.VarChar(200)
+    latitude           Decimal?         @db.Decimal(10, 6)
+    longitude          Decimal?         @db.Decimal(10, 6)
+    updatesent         Int?             @default(0) @db.TinyInt
+    wifipassword       String?          @db.VarChar(200)
+    outlet             outlet?          @relation(fields: [fkoutletid], references: [id], map: "outlet")
+    devicemovement     devicemovement[]
+
+    @@index([active], map: "active")
+    @@index([alwaysonline], map: "alwaysonline")
+    @@index([fkoutletid], map: "fkoutletid_ind")
+    @@index([fkpostypeid], map: "fkpostypeid_ind")
+}
+
+model devicemovement {
+    id                Int      @id @default(autoincrement())
+    fkuid             String?  @db.VarChar(50)
+    movementtimestamp DateTime @db.Timestamp(0)
+    prevlatlng        String?  @db.VarChar(45)
+    newlatlng         String?  @db.VarChar(45)
+    latitude          Decimal? @default(0.000000) @db.Decimal(10, 6)
+    longitude         Decimal? @default(0.000000) @db.Decimal(10, 6)
+    prevlatitude      Decimal? @default(0.000000) @db.Decimal(10, 6)
+    prevlongitude     Decimal? @default(0.000000) @db.Decimal(10, 6)
+    device            device?  @relation(fields: [fkuid], references: [uid], onDelete: Cascade, map: "uid_key")
+
+    @@index([fkuid], map: "uid_key")
+}
+
+model document_type {
+    id              Int               @id @unique(map: "id_UNIQUE") @default(autoincrement())
+    name            String?           @db.VarChar(50)
+    fkinstituteid   Int?
+    institute       institute?        @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_doctype_instituteid")
+    outlet_document outlet_document[]
+
+    @@index([fkinstituteid], map: "FK_doctype_instituteid_idx")
+}
+
+model inapp_user_notification {
+    id          Int  @id @default(autoincrement())
+    fkuserid    Int?
+    fkmessageid Int?
+    isread      Int  @default(0) @db.TinyInt
+
+    @@index([fkmessageid], map: "fkmessageid")
+    @@index([fkuserid], map: "fkuserid")
+}
+
+model inappmessages {
+    id         Int       @id @default(autoincrement())
+    message    String?   @db.Text
+    created_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model institute {
+    id                 Int                  @id @default(autoincrement())
+    name               String?              @unique(map: "unq_institute_name")
+    logourl            String?
+    active             Int?                 @db.TinyInt
+    contactemail       String?              @db.VarChar(500)
+    offlinereport      Int?                 @default(0) @db.TinyInt
+    token              String?              @db.VarChar(500)
+    asset              asset[]
+    asset_action_type  asset_action_type[]
+    asset_make         asset_make[]
+    asset_model        asset_model[]
+    asset_type         asset_type[]
+    contract           contract[]
+    customer           customer[]
+    dataload_config    dataload_config?
+    document_type      document_type[]
+    marketchannel      marketchannel[]
+    outletcategory     outletcategory[]
+    reseller_institute reseller_institute[]
+    salesrep           salesrep[]
+    serviceaction      serviceaction[]
+    user               user[]
+}
+
+model marketchannel {
+    id            Int        @id @default(autoincrement())
+    name          String?    @db.VarChar(50)
+    description   String?    @db.VarChar(200)
+    active        Int?       @default(1) @db.TinyInt
+    fkinstituteid Int?       @default(4)
+    institute     institute? @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "marketchannel_institute_fk")
+    outlet        outlet[]
+
+    @@index([fkinstituteid], map: "marketchannel_institute_fk_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model notification_preferences {
+    id                       Int       @id @default(autoincrement())
+    title                    String    @db.VarChar(255)
+    description              String?   @db.VarChar(350)
+    notification_type        Int       @default(1) @db.TinyInt
+    schedule_notification_at Int       @default(1) @db.TinyInt
+    created_at               DateTime  @default(now()) @db.Timestamp(0)
+    updated_at               DateTime  @default(now()) @db.Timestamp(0)
+    deleted_at               DateTime? @db.Timestamp(0)
+
+    @@index([notification_type], map: "notification_type")
+    @@index([schedule_notification_at], map: "schedule_notification_at")
+}
+
+model organisation {
+    id           Int      @id @default(autoincrement())
+    name         String
+    logourl      String?
+    fkresellerid Int
+    active       Int?     @default(1) @db.TinyInt
+    reseller     reseller @relation(fields: [fkresellerid], references: [id], onDelete: Cascade, map: "reseller")
+    site         site[]
+
+    @@unique([name, fkresellerid], map: "idx_name_resellerid")
+    @@index([fkresellerid], map: "fkresellerid_ind")
+}
+
+model outlet {
+    id                  Int                 @id @default(autoincrement())
+    fkcustomerid        Int?
+    name                String?             @db.VarChar(100)
+    outlet_company_name String?             @db.VarChar(255)
+    outletidentifier    String?             @db.VarChar(45)
+    contacttel          String?             @db.Char(50)
+    contactmob          String?             @db.Char(50)
+    active              Int?                @default(1) @db.TinyInt
+    contactemail        String?             @db.Char(100)
+    contactemail2       String?             @db.Char(100)
+    contactname         String?             @db.Char(100)
+    fkmarketchannelid   Int?                @default(0)
+    marketchannelids    String?             @db.VarChar(255)
+    assetids            String?             @db.VarChar(100)
+    shiftreport         Int?                @default(0) @db.TinyInt
+    fkcityid            Int?
+    fkprovinceid        Int?
+    fkregionid          Int?
+    fkcountryid         Int?
+    fkoutletcategoryid  Int?
+    fkcontractid        Int?
+    noreporting         Int?                @default(0) @db.TinyInt
+    target              Int?                @default(520)
+    showkegchange       Int?                @default(1) @db.TinyInt
+    showkegclean        Int?                @default(1) @db.TinyInt
+    showtemperature     Int?                @default(1) @db.TinyInt
+    fksalesrepid        Int?
+    address             String?             @db.VarChar(256)
+    latitude            Decimal?            @db.Decimal(14, 10)
+    longitude           Decimal?            @db.Decimal(14, 10)
+    timezone            String?             @default("+02:00") @db.VarChar(50)
+    hasdls              Int?                @default(1) @db.TinyInt
+    serviceenddate      DateTime?           @default(dbgenerated("'2020-01-01 00:00:00'")) @db.DateTime(0)
+    asset               asset[]
+    contract            contract[]
+    daylightsaving      daylightsaving[]
+    device              device[]
+    customer            customer?           @relation(fields: [fkcustomerid], references: [id], map: "customer")
+    marketchannel       marketchannel?      @relation(fields: [fkmarketchannelid], references: [id], onDelete: NoAction, map: "marketchannel_key")
+    city                city?               @relation(fields: [fkcityid], references: [id], map: "outlet_city")
+    country             country?            @relation(fields: [fkcountryid], references: [id], map: "outlet_country")
+    province            province?           @relation(fields: [fkprovinceid], references: [id], map: "outlet_province")
+    region              region?             @relation(fields: [fkregionid], references: [id], map: "outlet_region")
+    salesrep            salesrep?           @relation(fields: [fksalesrepid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "outlet_salesrep")
+    outletcategory      outletcategory?     @relation(fields: [fkoutletcategoryid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "outletcategory")
+    outlet_document     outlet_document[]
+    service             service[]
+    service_tmp         service_tmp[]
+    techregion_outlet   techregion_outlet[]
+    user                user[]
+
+    @@index([active], map: "active")
+    @@index([fkcityid], map: "fkcityid")
+    @@index([fkcontractid], map: "fkcontractid")
+    @@index([fkcountryid], map: "fkcountryid")
+    @@index([fkcustomerid], map: "fkcustomerid_ind")
+    @@index([fkoutletcategoryid], map: "fkoutletcategoryid")
+    @@index([fkprovinceid], map: "fkprovinceid")
+    @@index([fkregionid], map: "fkregionid")
+    @@index([fksalesrepid], map: "fksalesrepid")
+    @@index([hasdls], map: "hasdls")
+    @@index([fkmarketchannelid], map: "marketchannel_key")
+    @@index([noreporting], map: "noreporting_ind")
+}
+
+model outlet_document {
+    id            Int            @id @unique(map: "id_UNIQUE") @default(autoincrement())
+    description   String?        @db.VarChar(500)
+    fkoutletid    Int?
+    fkdoctypeid   Int?
+    publicurl     String?        @db.VarChar(200)
+    creationdate  DateTime?      @db.DateTime(0)
+    document_type document_type? @relation(fields: [fkdoctypeid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_outlet_doc_type_id")
+    outlet        outlet?        @relation(fields: [fkoutletid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_outlet_document_outletid")
+
+    @@index([fkdoctypeid], map: "FK_oulet_doc_type_id_idx")
+    @@index([fkoutletid], map: "FK_outlet_id_idx")
+}
+
+model outlet_serviceaction {
+    outletid        Int
+    serviceactionid Int
+
+    @@id([outletid, serviceactionid])
+}
+
+model outletassets {
+    id         Int  @id @default(autoincrement())
+    fkoutletid Int?
+    fkassetid  Int?
+
+    @@index([fkassetid], map: "fkassetid")
+    @@index([fkoutletid], map: "fkoutletid")
+}
+
+model outletcategory {
+    id            Int        @id @default(autoincrement())
+    name          String?    @db.VarChar(50)
+    description   String?    @db.VarChar(200)
+    active        Int?       @default(1) @db.TinyInt
+    fkinstituteid Int?       @default(4)
+    outlet        outlet[]
+    institute     institute? @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "outletcategory_institute_fk")
+
+    @@index([fkinstituteid], map: "outletcategory_institute_fk_idx")
+}
+
+model province {
+    id     Int      @id @default(autoincrement())
+    name   String   @unique(map: "province_name_UNIQUE") @db.VarChar(100)
+    active Int?     @default(1) @db.TinyInt
+    outlet outlet[]
+}
+
+model region {
+    id            Int      @id @default(autoincrement())
+    name          String?  @db.VarChar(100)
+    active        Int?     @default(1) @db.TinyInt
+    fkinstituteid Int?
+    outlet        outlet[]
+
+    @@index([fkinstituteid], map: "fkinstituteid")
+}
+
+model reportconfig {
+    id                Int                 @id @default(autoincrement())
+    name              String?             @db.VarChar(50)
+    description       String?             @db.VarChar(200)
+    dayofweek         String?             @db.VarChar(20)
+    hour              Int?                @default(0) @db.TinyInt
+    minute            Int?                @default(0) @db.TinyInt
+    active            Int?                @default(1) @db.TinyInt
+    reportconfig_user reportconfig_user[]
+}
+
+model reportconfig_user {
+    reportconfigid Int
+    userid         Int
+    reportconfig   reportconfig @relation(fields: [reportconfigid], references: [id], onDelete: Cascade, map: "reportconfig1")
+    user           user         @relation(fields: [userid], references: [id], onDelete: Cascade, map: "userid1")
+
+    @@id([reportconfigid, userid])
+    @@index([reportconfigid], map: "reportconfigid_ind1")
+    @@index([userid], map: "userid_ind1")
+}
+
+model reseller {
+    id                 Int                  @id @default(autoincrement())
+    name               String?              @unique(map: "unq_reseller_name")
+    active             Int?                 @db.TinyInt
+    organisation       organisation[]
+    reseller_institute reseller_institute[]
+    user               user[]
+}
+
+model reseller_institute {
+    resellerid  Int
+    instituteid Int
+    institute   institute @relation(fields: [instituteid], references: [id], onDelete: Cascade, map: "institute2")
+    reseller    reseller  @relation(fields: [resellerid], references: [id], onDelete: Cascade, map: "reseller1")
+
+    @@id([resellerid, instituteid])
+    @@index([instituteid], map: "instituteid_ind1")
+    @@index([resellerid], map: "resellerid_ind1")
+}
+
+model salesrep {
+    id            Int        @id @default(autoincrement())
+    name          String?    @db.VarChar(255)
+    fkinstituteid Int?
+    email         String?    @db.VarChar(200)
+    outlet        outlet[]
+    institute     institute? @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "salesrep_fk_institute")
+
+    @@unique([name, fkinstituteid], map: "salesrep_unique")
+    @@index([fkinstituteid], map: "salesrep_fk")
+}
+
+model service {
+    id            Int           @id @unique(map: "id_UNIQUE") @default(autoincrement()) @db.UnsignedInt
+    uid           String?       @unique(map: "uid_UNIQUE") @db.VarChar(50)
+    starttime     DateTime?     @db.Timestamp(0)
+    endtime       DateTime?     @db.Timestamp(0)
+    volume        Int?
+    fkuserid      Int
+    fkoutletid    Int
+    fkactionid    Int           @db.UnsignedInt
+    notes         String?       @db.VarChar(5000)
+    latitude      Decimal?      @db.Decimal(10, 6)
+    longitude     Decimal?      @db.Decimal(10, 6)
+    assetnumber   String?       @db.VarChar(5000)
+    autoclosed    Int?          @default(0) @db.TinyInt
+    serviceaction serviceaction @relation(fields: [fkactionid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "service_fkactionid")
+    outlet        outlet        @relation(fields: [fkoutletid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "service_fkoutletid")
+    user          user          @relation(fields: [fkuserid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "service_fkuserid")
+
+    @@index([fkactionid])
+    @@index([fkoutletid], map: "service_outlet_action")
+    @@index([starttime, endtime], map: "service_starttime_end_time")
+    @@index([fkuserid], map: "service_user_action")
+}
+
+model service_asset {
+    fkserviceid Int
+    fkassetid   Int
+
+    @@id([fkserviceid, fkassetid])
+}
+
+model service_tmp {
+    id            Int           @id @unique(map: "id_UNIQUE") @default(autoincrement()) @db.UnsignedInt
+    uid           String?       @unique(map: "uid_UNIQUE") @db.VarChar(50)
+    starttime     DateTime?     @db.Timestamp(0)
+    endtime       DateTime?     @db.Timestamp(0)
+    volume        Int?
+    fkuserid      Int
+    fkoutletid    Int
+    fkactionid    Int           @db.UnsignedInt
+    notes         String?       @db.VarChar(5000)
+    latitude      Decimal?      @db.Decimal(10, 6)
+    longitude     Decimal?      @db.Decimal(10, 6)
+    assetnumber   String?       @db.VarChar(5000)
+    autoclosed    Int?          @default(0) @db.TinyInt
+    user          user          @relation(fields: [fkuserid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "service__tmp_fkuserid")
+    serviceaction serviceaction @relation(fields: [fkactionid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "service_tmp_fkactionid")
+    outlet        outlet        @relation(fields: [fkoutletid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "service_tmp_fkoutletid")
+
+    @@index([fkactionid])
+    @@index([fkoutletid], map: "service_tmp_outlet_action")
+    @@index([starttime, endtime], map: "service_tmp_starttime_end_time")
+    @@index([fkuserid], map: "service_tmp_user_action")
+}
+
+model serviceaction {
+    id               Int           @id @unique(map: "id_UNIQUE") @default(autoincrement()) @db.UnsignedInt
+    fkinstituteid    Int
+    action           String        @db.VarChar(85)
+    service_interval Int?
+    active           Int?          @default(1) @db.TinyInt
+    service          service[]
+    service_tmp      service_tmp[]
+    institute        institute     @relation(fields: [fkinstituteid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "serviceaction_institute")
+
+    @@unique([fkinstituteid, action], map: "action_UNIQUE")
+    @@index([fkinstituteid, action], map: "serviceaction_institute_action")
+}
+
+model site {
+    id               Int          @id @default(autoincrement())
+    fkorganisationid Int
+    name             String?      @db.VarChar(100)
+    providersiteid   Int?         @default(0)
+    contacttel       String?      @db.Char(50)
+    active           Int?         @default(1) @db.TinyInt
+    contactemail     String?      @db.Char(100)
+    contactname      String?      @db.Char(100)
+    organisation     organisation @relation(fields: [fkorganisationid], references: [id], onDelete: Cascade, map: "organisation")
+
+    @@unique([fkorganisationid, name, providersiteid], map: "idx_site_fkorganisationid_name_providersiteid")
+    @@index([fkorganisationid], map: "fkorganisationid_ind")
+}
+
+model techregion {
+    id                Int                 @id @default(autoincrement())
+    name              String?             @db.VarChar(255)
+    fkinstituteid     Int?
+    techregion_outlet techregion_outlet[]
+    techregion_user   techregion_user[]
+}
+
+model techregion_outlet {
+    fktechregionid Int
+    fkoutletid     Int
+    outlet         outlet     @relation(fields: [fkoutletid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "tro_outlet_fkey")
+    techregion     techregion @relation(fields: [fktechregionid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "tro_techregion_fkey")
+
+    @@id([fktechregionid, fkoutletid])
+    @@index([fkoutletid], map: "tro_outlet_fkey_idx")
+}
+
+model techregion_user {
+    fktechregionid Int
+    fkuserid       Int
+    techregion     techregion @relation(fields: [fktechregionid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_techregion_user_techregion")
+    user           user       @relation(fields: [fkuserid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_techregion_user_user")
+
+    @@id([fktechregionid, fkuserid])
+    @@index([fkuserid], map: "fk_techregion_user_user_idx")
+    @@index([fkuserid], map: "techregion_user_user_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tickets {
+    id               Int       @id @default(autoincrement())
+    uid              String?   @db.VarChar(255)
+    fkuserid         Int?
+    fkoutletid       Int?
+    title            String?   @db.VarChar(255)
+    start_notes      String?   @db.Text
+    assetnumber      String?   @db.VarChar(255)
+    fkactionid       Int?
+    close_notes      String?   @db.Text
+    starttime        DateTime? @db.DateTime(0)
+    endtime          DateTime? @db.DateTime(0)
+    closed_by_userid Int?
+    images           String?   @db.Text
+    active           Int       @default(1) @db.TinyInt
+    last_updated_by  Int?
+    updated_at       DateTime? @db.Timestamp(0)
+
+    @@index([fkactionid], map: "fkactionid")
+    @@index([closed_by_userid], map: "fkclosedby")
+    @@index([fkoutletid], map: "fkoutletid")
+    @@index([fkuserid], map: "fkuserid")
+    @@index([uid], map: "uid")
+}
+
+model time_dimension {
+    id        Int      @id
+    db_date   DateTime @unique(map: "td_dbdate_idx") @db.Date
+    day_month String   @db.VarChar(15)
+}
+
+model user {
+    id                 Int                 @id @default(autoincrement())
+    uid                String?             @db.VarChar(50)
+    displayname        String?             @db.VarChar(50)
+    email              String?             @unique(map: "email") @db.VarChar(100)
+    phonenumber        String?             @db.Char(50)
+    lastloginat        DateTime            @default(dbgenerated("'2019-12-31 22:00:00'")) @db.Timestamp(0)
+    login_from         String?             @db.VarChar(255)
+    created            DateTime            @default(now()) @db.Timestamp(0)
+    role               user_role
+    fkresellerid       Int?
+    fkinstituteid      Int?
+    fkcustomerid       Int?
+    fkoutletid         Int?
+    active             Int?                @db.TinyInt
+    isPasswordChanged  Int                 @default(1) @db.TinyInt
+    service            Int?                @default(0) @db.TinyInt
+    ticket             Int?                @default(0) @db.TinyInt
+    asset              Int?                @default(0) @db.TinyInt
+    customer_documents Int?                @default(0) @db.TinyInt
+    mytask             Int?                @default(0) @db.TinyInt
+    reportconfig_user  reportconfig_user[]
+    services           service[]
+    service_tmp        service_tmp[]
+    techregion_user    techregion_user[]
+    customer           customer?           @relation(fields: [fkcustomerid], references: [id], map: "customer1")
+    institute          institute?          @relation(fields: [fkinstituteid], references: [id], map: "institute1")
+    outlet             outlet?             @relation(fields: [fkoutletid], references: [id], map: "outlet1")
+    reseller           reseller?           @relation(fields: [fkresellerid], references: [id], map: "reseller2")
+
+    @@index([fkcustomerid], map: "fkcustomerid_ind")
+    @@index([fkinstituteid], map: "fkinstituteid_ind")
+    @@index([fkoutletid], map: "fkoutletid_ind")
+    @@index([fkresellerid], map: "fkresellerid_ind")
+}
+
+model user_login_logs {
+    id              Int      @default(autoincrement())
+    user_id         Int
+    login_date      DateTime @db.Date
+    web_login_count Int      @default(0)
+    app_login_count Int      @default(0)
+    created_at      DateTime @default(now()) @db.DateTime(0)
+    updated_at      DateTime @default(now()) @db.DateTime(0)
+    login_from      String?  @db.VarChar(255)
+
+    @@id([id, user_id, login_date])
+}
+
+model users_notification_preferences {
+    id                          Int      @default(autoincrement())
+    notification_preferences_id Int
+    fkinstituteid               Int
+    fkuserid                    Int
+    active                      Int      @default(1) @db.TinyInt
+    created_at                  DateTime @default(now()) @db.Timestamp(0)
+    updated_at                  DateTime @default(now()) @db.Timestamp(0)
+
+    @@id([id, notification_preferences_id, fkinstituteid, fkuserid, active])
+    @@index([active], map: "active")
+    @@index([fkinstituteid], map: "fkinstituteid")
+    @@index([notification_preferences_id], map: "np_id")
+    @@index([fkuserid], map: "userid")
+}
+
+model usertoken {
+    id          Int       @id @default(autoincrement())
+    userid      Int?
+    email       String?   @db.VarChar(100)
+    token       String?   @db.VarChar(256)
+    device      String?   @db.VarChar(256)
+    appname     String?   @db.VarChar(50)
+    lastupdated DateTime? @default(now()) @db.DateTime(0)
+}
+
+enum user_role {
+    SystemAdmin
+    ResellerAdmin
+    ResellerUser
+    instituteAdmin
+    instituteUser
+    CustomerAdmin
+    CustomerUser
+    OutletAdmin
+    OutletUser
+}
