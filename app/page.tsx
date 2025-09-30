@@ -1,103 +1,185 @@
-import Image from "next/image";
+import prisma from "@/lib/prisma";
+import { Dashboard } from "@/app/(components)/Dashboard";
 
-export default function Home() {
+type DashboardData = {
+  connected: boolean;
+  stats: {
+    assets: number;
+    institutes: number;
+    outlets: number;
+    customers: number;
+    assetTypes: number;
+    devices: number;
+  };
+  recentAssets: Array<{
+    id: number;
+    name: string;
+    assetNumber: string;
+    institute: string;
+    outlet: string;
+    type: string;
+    make: string;
+    model: string;
+    installDate: Date | null;
+    status: "Active" | "Inactive";
+  }>;
+  recentActivity: Array<{
+    id: number;
+    actionDate: Date | null;
+    actionType: string;
+    assetName: string;
+    assetNumber: string | null;
+    location: string | null;
+  }>;
+  topCustomers: Array<{
+    id: number;
+    name: string;
+    outletCount: number;
+    active: boolean;
+  }>;
+};
+
+const fallbackData: DashboardData = {
+  connected: false,
+  stats: {
+    assets: 0,
+    institutes: 0,
+    outlets: 0,
+    customers: 0,
+    assetTypes: 0,
+    devices: 0,
+  },
+  recentAssets: [],
+  recentActivity: [],
+  topCustomers: [],
+};
+
+async function loadDashboardData(): Promise<DashboardData> {
+  if (!process.env.DATABASE_URL) {
+    return fallbackData;
+  }
+
+  try {
+    const [assets, institutes, outlets, customers, assetTypes, devices] =
+      await Promise.all([
+        prisma.asset.count(),
+        prisma.institute.count(),
+        prisma.outlet.count(),
+        prisma.customer.count(),
+        prisma.asset_type.count(),
+        prisma.device.count(),
+      ]);
+
+    const [recentAssetsRaw, recentActivityRaw, topCustomersRaw] =
+      await Promise.all([
+        prisma.asset.findMany({
+          take: 6,
+          orderBy: [
+            { installdate: "desc" },
+            { id: "desc" },
+          ],
+          include: {
+            institute: { select: { name: true } },
+            outlet: { select: { name: true } },
+            asset_type: { select: { name: true } },
+            asset_make: { select: { name: true } },
+            asset_model: { select: { name: true } },
+          },
+        }),
+        prisma.asset_action.findMany({
+          take: 6,
+          orderBy: [
+            { actiondate: "desc" },
+            { id: "desc" },
+          ],
+          include: {
+            asset: { select: { name: true, assetnumber: true } },
+            asset_action_type: { select: { name: true } },
+          },
+        }),
+        prisma.customer.findMany({
+          take: 6,
+          orderBy: { id: "desc" },
+          select: {
+            id: true,
+            name: true,
+            active: true,
+            _count: { select: { outlet: true } },
+          },
+        }),
+      ]);
+
+    const recentAssets = recentAssetsRaw.map((asset) => {
+      const status: "Active" | "Inactive" =
+        asset.active === 0 ? "Inactive" : "Active";
+
+      return {
+        id: asset.id,
+        name: asset.name ?? "Untitled asset",
+        assetNumber: asset.assetnumber ?? "—",
+        institute: asset.institute?.name ?? "—",
+        outlet: asset.outlet?.name ?? "—",
+        type: asset.asset_type?.name ?? "—",
+        make: asset.asset_make?.name ?? "—",
+        model: asset.asset_model?.name ?? "—",
+        installDate: asset.installdate ?? null,
+        status,
+      };
+    });
+
+    const recentActivity = recentActivityRaw.map((activity) => {
+      const hasCoordinates =
+        activity.latitude !== null && activity.longitude !== null;
+
+      return {
+        id: activity.id,
+        actionDate: activity.actiondate ?? null,
+        actionType: activity.asset_action_type?.name ?? "Update",
+        assetName:
+          activity.asset?.name ?? activity.asset?.assetnumber ?? "Unknown asset",
+        assetNumber: activity.asset?.assetnumber ?? null,
+        location: hasCoordinates
+          ? `${activity.latitude?.toFixed(3)}, ${activity.longitude?.toFixed(3)}`
+          : null,
+      };
+    });
+
+    const topCustomers = topCustomersRaw.map((customer) => ({
+      id: customer.id,
+      name: customer.name ?? "Unnamed customer",
+      outletCount: customer._count.outlet,
+      active: customer.active === 1,
+    }));
+
+    return {
+      connected: true,
+      stats: { assets, institutes, outlets, customers, assetTypes, devices },
+      recentAssets,
+      recentActivity,
+      topCustomers,
+    };
+  } catch (error) {
+    console.error("Dashboard data load failed", error);
+    return fallbackData;
+  }
+}
+
+export default async function DashboardPage() {
+  const data = await loadDashboardData();
+
+  const statCards = [
+    { label: "Assets", value: data.stats.assets },
+    { label: "Institutes", value: data.stats.institutes },
+    { label: "Outlets", value: data.stats.outlets },
+    { label: "Customers", value: data.stats.customers },
+    { label: "Asset Types", value: data.stats.assetTypes },
+    { label: "Devices", value: data.stats.devices },
+  ];
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    <Dashboard
+      statCards={statCards}
+      data={data}
+    />
   );
 }
