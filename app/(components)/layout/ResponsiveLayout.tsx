@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -10,8 +10,23 @@ interface LayoutProps {
     title?: string;
 }
 
+const MOBILE_USER_AGENT_REGEX = /android|iphone|ipad|ipod|blackberry|bb10|mobile|windows phone/i;
+
 export function ResponsiveLayout({ children, title }: LayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [formsHref, setFormsHref] = useState('/forms');
+
+    useEffect(() => {
+        if (typeof navigator === 'undefined') {
+            return;
+        }
+
+        const userAgent = navigator.userAgent || '';
+        const isTouch = 'maxTouchPoints' in navigator && navigator.maxTouchPoints > 0;
+        const isMobile = MOBILE_USER_AGENT_REGEX.test(userAgent) || isTouch;
+
+        setFormsHref(isMobile ? '/forms/mobile' : '/forms/desktop');
+    }, []);
 
     const navigationItems = [
         { name: 'Dashboard', href: '/', icon: '📊' },
@@ -20,6 +35,7 @@ export function ResponsiveLayout({ children, title }: LayoutProps) {
         { name: 'Players', href: '/players', icon: '🤽' },
         { name: 'Clubs', href: '/clubs', icon: '🏢' },
         { name: 'Institutes', href: '/institutes', icon: '🏛️' },
+        { name: 'Forms', href: formsHref, icon: '📝' },
         { name: 'Competitions', href: '/competitions', icon: '🏆' },
         { name: 'Matches', href: '/matches', icon: '📅' },
     ];
@@ -45,7 +61,7 @@ export function ResponsiveLayout({ children, title }: LayoutProps) {
                     <div className="flex items-center space-x-3 min-w-0 flex-1">
                         <div className="h-10 w-10 rounded-full border-2 border-black overflow-hidden flex-shrink-0 relative">
                             <Image
-                                src="/favicon-32.png"
+                                src="/axxetio_logo.png"
                                 alt="Art of Water Polo"
                                 fill
                                 sizes="40px"
@@ -102,17 +118,7 @@ export function ResponsiveLayout({ children, title }: LayoutProps) {
                             )}
                         </div>
 
-                        <div className="flex items-center space-x-4 flex-shrink-0">
-                            <div className="h-10 w-10 rounded-full border-2 border-black overflow-hidden flex-shrink-0 relative">
-                                <Image
-                                    src="/favicon-32.png"
-                                    alt="Art of Water Polo"
-                                    fill
-                                    sizes="40px"
-                                    className="object-cover logo_bg flip-x"
-                                />
-                            </div>
-                        </div>
+
                     </div>
                 </header>
 
